@@ -196,6 +196,8 @@ describe("Hash Methods", {
 
 		var myHash3 = new Hash({fruits: {apple: ['red', 'yellow'], lemon: ['green', 'yellow']}});
 		value_of(myHash3.toQueryString()).should_be('fruits[apple][0]=red&fruits[apple][1]=yellow&fruits[lemon][0]=green&fruits[lemon][1]=yellow');
+		
+		value_of(myHash3.toQueryString({ property: '.#', array: '' })).should_be('fruits.apple=red&fruits.apple=yellow&fruits.lemon=green&fruits.lemon=yellow');
 	}
 
 });
