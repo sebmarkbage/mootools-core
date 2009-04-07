@@ -109,24 +109,23 @@ Hash.implement({
 
 	toQueryString: function(format){
 		if($type(format) == 'string') format = { base: format };
-		format = $extend({ property: '[#]', array: '[#]' }, format);
+		format = $extend({ property: '[#]', array: '[#]', separator: '&' }, format);
 		
-		var queryString = [];
-		var addToQuery = function(obj, base){
-			if ($type(obj).test(/object|hash/))
-				Hash.each(obj, function(value, key){
-					if (base) key = base + format.property.replace(/\#/, key);
-					addToQuery(value, key);
-				});
-			else if($type(obj) == 'array')
-				obj.each(function(value, i){
-					addToQuery(value, base + format.array.replace(/\#/, i));
-				});
-			else
-				queryString.push(base + '=' + encodeURIComponent(obj));
+		var queryString = [], base = format.base;
+		var pushItem = function(value, key){
+			format.base = base.replace(/\#/, key);
+			queryString.push(Hash.toQueryString(value, format));
 		};
-		addToQuery(this, format.base);
-		return queryString.join('&');
+		if ($type(this).test(/object|hash/)){
+			base = base ? base + format.property : '#'; 
+			Hash.each(this, pushItem);
+		} else if($type(this) == 'array'){
+			base = base + format.array;
+			this.each(pushItem);
+		} else {
+			return base + '=' + encodeURIComponent(this);
+		}
+		return queryString.join(format.separator);
 	}
 
 });
