@@ -91,7 +91,7 @@ var Elements = new Native({
 			}
 			elements = returned;
 		}
-		return (options.cash) ? $extend(elements, this) : elements;
+		return (options.cash) ? $extend(elements, Elements.prototype) : elements;
 	}
 
 });
