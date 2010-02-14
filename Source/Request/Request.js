@@ -178,7 +178,7 @@ var Request = new Class({
 		
 		var xdr = !(sameOrigin || 'withCredentials' in this.xhr);
 		
-		if (xdr && XDomainRequest && this.options.async){
+		if (xdr && window.XDomainRequest && this.options.async){
 			this.xhr = new XDomainRequest();
 			this.xhr.open(method.toUpperCase(), url);
 			this.xhr.onload = this.onLoad.bind(this);
