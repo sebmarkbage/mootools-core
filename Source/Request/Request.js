@@ -62,7 +62,6 @@ var Request = new Class({
 		this.running = false;
 		try { this.status = this.xhr.status; }
 		catch (e){ this.status = 0; }
-		this.xhr.onreadystatechange = $empty;
 		if (this.options.isSuccess.call(this, this.status))
 			this.onLoad();
 		else
@@ -70,11 +69,13 @@ var Request = new Class({
 	},
 	
 	onLoad: function(){
+		this.cleanup();
 		this.response = {text: this.xhr.responseText, xml: this.xhr.responseXML};
 		this.success(this.response.text, this.response.xml);
 	},
 	
 	onError: function(){
+		this.cleanup();
 		this.response = {text: null, xml: null};
 		this.failure();
 	},
@@ -208,10 +209,18 @@ var Request = new Class({
 		if (!this.running) return this;
 		this.running = false;
 		this.xhr.abort();
-		this.xhr.onreadystatechange = $empty;
+		this.cleanup();
 		this.xhr = new Browser.Request();
 		this.fireEvent('cancel');
 		return this;
+	},
+	
+	cleanup: function(){
+		if (this.xhr.onreadystatechange){
+			this.xhr.onreadystatechange = $empty;
+		} else {
+			this.xhr.onload = this.xhr.onerror = this.xhr.ontimeout = $empty;
+		}
 	}
 
 });
