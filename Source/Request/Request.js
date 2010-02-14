@@ -7,7 +7,7 @@ description: Powerful all purpose Request Class. Uses XMLHTTPRequest.
 
 license: MIT-style license.
 
-requires: [Element, Chain, Events, Options, Browser]
+requires: [String, Element, Chain, Events, Options, Browser]
 
 provides: Request
 
@@ -41,7 +41,8 @@ var Request = new Class({
 		encoding: 'utf-8',
 		evalScripts: false,
 		evalResponse: false,
-		noCache: false
+		noCache: false,
+		proxy: false
 	},
 
 	initialize: function(options){
@@ -54,18 +55,24 @@ var Request = new Class({
 	onStateChange: function(){
 		if (this.xhr.readyState != 4 || !this.running) return;
 		this.running = false;
-		this.status = 0;
-		Function.stab(function(){
-			this.status = this.xhr.status;
-		}.bind(this));
-		this.xhr.onreadystatechange = function(){};
-		if (this.options.isSuccess.call(this, this.status)){
-			this.response = {text: this.xhr.responseText, xml: this.xhr.responseXML};
-			this.success(this.response.text, this.response.xml);
-		} else {
-			this.response = {text: null, xml: null};
-			this.failure();
-		}
+		try { this.status = this.xhr.status; }
+		catch (e){ this.status = 0; }
+		if (this.options.isSuccess.call(this, this.status))
+			this.onLoad();
+		else
+			this.onError();
+	},
+	
+	onLoad: function(){
+		this.cleanup();
+		this.response = {text: this.xhr.responseText, xml: this.xhr.responseXML};
+		this.success(this.response.text, this.response.xml);
+	},
+	
+	onError: function(){
+		this.cleanup();
+		this.response = {text: null, xml: null};
+		this.failure();
 	},
 
 	isSuccess: function(){
@@ -99,9 +106,8 @@ var Request = new Class({
 	},
 
 	getHeader: function(name){
-		return Function.stab(function(){
-			return this.xhr.getResponseHeader(name);
-		}.bind(this));
+		try { return this.xhr.getResponseHeader(name); }
+		catch (e){ return name == 'Content-type' ? this.xhr.contentType || null : null; }
 	},
 
 	check: function(){
@@ -149,26 +155,44 @@ var Request = new Class({
 			var noCache = 'noCache=' + new Date().getTime();
 			data = (data) ? noCache + '&' + data : noCache;
 		}
-
-		var trimPosition = url.lastIndexOf('/');
-		if (trimPosition > -1 && (trimPosition = url.indexOf('#')) > -1) url = url.substr(0, trimPosition);
+		
+		var parsedUrl = (/(([a-z]+:)?\/\/([^\/]*)(\:\d{2,3})?\/)?[^#]*/).exec(url);
+		var location, sameOrigin = true;
+		if (parsedUrl){
+			url = parsedUrl[0];
+			location = document.location;
+			sameOrigin = !parsedUrl[1] || (!parsedUrl[2] || parsedUrl[2] == location.protocol) &&
+				(!parsedUrl[3] || parsedUrl[3] == location.hostname) &&
+				((parsedUrl[4] || (location.protocol == 'https' ? 443 : 80)) == location.port);
+		}
 
 		if (data && method == 'get'){
 			url = url + (url.contains('?') ? '&' : '?') + data;
 			data = null;
 		}
-
-		this.xhr.open(method.toUpperCase(), url, this.options.async);
-
-		this.xhr.onreadystatechange = this.onStateChange.bind(this);
-
-		this.headers.each(function(value, key){
-			try {
-				this.xhr.setRequestHeader(key, value);
-			} catch (e){
-				this.fireEvent('exception', [key, value]);
+		
+		var xdr = !(sameOrigin || 'withCredentials' in this.xhr);
+		
+		if (xdr && window.XDomainRequest && this.options.async){
+			this.xhr = new XDomainRequest();
+			this.xhr.open(method.toUpperCase(), url);
+			this.xhr.onload = this.onLoad.bind(this);
+			this.xhr.onerror = this.xhr.ontimeout = this.onError.bind(this);
+		} else {
+			if (xdr && this.options.proxy) url = this.options.proxy.substitute({ url: encodeURIComponent(url) });
+			
+			this.xhr.open(method.toUpperCase(), url, this.options.async);
+			this.xhr.onreadystatechange = this.onStateChange.bind(this);
+			
+			if (sameOrigin){
+				this.headers.each(function(value, key){
+					try { this.xhr.setRequestHeader(key, value); }
+					catch (e){ this.fireEvent('exception', [key, value]); }
+				}, this);
 			}
-		}, this);
+			
+			if (xdr) this.xhr.setRequestHeader('Origin', location.protocol + '//' + location.hostname);
+		}
 
 		this.fireEvent('request');
 		this.xhr.send(data);
@@ -180,13 +204,25 @@ var Request = new Class({
 		if (!this.running) return this;
 		this.running = false;
 		this.xhr.abort();
-		this.xhr.onreadystatechange = function(){};
+		this.cleanup();
 		this.xhr = new Browser.Request();
 		this.fireEvent('cancel');
 		return this;
+	},
+	
+	cleanup: function(){
+		if (this.xhr.onreadystatechange){
+			this.xhr.onreadystatechange = function(){};
+		} else {
+			this.xhr.onload = this.xhr.onerror = this.xhr.ontimeout = function(){};
+		}
 	}
 
 });
+
+Request.setProxy = function(proxy){
+	Request.prototype.options.proxy = proxy;
+};
 
 (function(){
 
