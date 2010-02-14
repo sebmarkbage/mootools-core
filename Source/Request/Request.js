@@ -57,24 +57,16 @@ var Request = new Class({
 		this.running = false;
 		try { this.status = this.xhr.status; }
 		catch (e){ this.status = 0; }
-		if (this.options.isSuccess.call(this, this.status))
-			this.onLoad();
-		else
-			this.onError();
+		this.xhr.onreadystatechange = function(){};
+		if (this.options.isSuccess.call(this, this.status)){
+			this.response = {text: this.xhr.responseText, xml: this.xhr.responseXML};
+			this.success(this.response.text, this.response.xml);
+		} else {
+			this.response = {text: null, xml: null};
+			this.failure();
+		}
 	},
 	
-	onLoad: function(){
-		this.cleanup();
-		this.response = {text: this.xhr.responseText, xml: this.xhr.responseXML};
-		this.success(this.response.text, this.response.xml);
-	},
-	
-	onError: function(){
-		this.cleanup();
-		this.response = {text: null, xml: null};
-		this.failure();
-	},
-
 	isSuccess: function(){
 		return ((this.status >= 200) && (this.status < 300));
 	},
@@ -107,7 +99,7 @@ var Request = new Class({
 
 	getHeader: function(name){
 		try { return this.xhr.getResponseHeader(name); }
-		catch (e){ return name == 'Content-type' ? this.xhr.contentType || null : null; }
+		catch (e){ return null; }
 	},
 
 	check: function(){
@@ -157,13 +149,13 @@ var Request = new Class({
 		}
 		
 		var parsedUrl = (/(([a-z]+:)?\/\/([^\/]*)(\:\d{2,3})?\/)?[^#]*/).exec(url);
-		var location, sameOrigin = true;
+		var xd = false;
 		if (parsedUrl){
 			url = parsedUrl[0];
-			location = document.location;
-			sameOrigin = !parsedUrl[1] || (!parsedUrl[2] || parsedUrl[2] == location.protocol) &&
-				(!parsedUrl[3] || parsedUrl[3] == location.hostname) &&
-				((parsedUrl[4] || (location.protocol == 'https' ? 443 : 80)) == location.port);
+			var location = document.location;
+			xd = parsedUrl[1] && (parsedUrl[2] && parsedUrl[2] != location.protocol) ||
+				(parsedUrl[3] && parsedUrl[3] != location.hostname) ||
+				((parsedUrl[4] || (location.protocol == 'https' ? 443 : 80)) != location.port);
 		}
 
 		if (data && method == 'get'){
@@ -171,28 +163,24 @@ var Request = new Class({
 			data = null;
 		}
 		
-		var xdr = !(sameOrigin || 'withCredentials' in this.xhr);
+		return this.openRequest(method, url, data, xd);
+	},
+	
+	openRequest: function(method, url, data, xd){
+		var proxy = xd && !('withCredentials' in this.xhr) && this.options.proxy;
+		if (proxy) url = this.options.proxy.substitute({ url: encodeURIComponent(url) });
 		
-		if (xdr && window.XDomainRequest && this.options.async){
-			this.xhr = new XDomainRequest();
-			this.xhr.open(method.toUpperCase(), url);
-			this.xhr.onload = this.onLoad.bind(this);
-			this.xhr.onerror = this.xhr.ontimeout = this.onError.bind(this);
-		} else {
-			if (xdr && this.options.proxy) url = this.options.proxy.substitute({ url: encodeURIComponent(url) });
-			
-			this.xhr.open(method.toUpperCase(), url, this.options.async);
-			this.xhr.onreadystatechange = this.onStateChange.bind(this);
-			
-			if (sameOrigin){
-				this.headers.each(function(value, key){
-					try { this.xhr.setRequestHeader(key, value); }
-					catch (e){ this.fireEvent('exception', [key, value]); }
-				}, this);
-			}
-			
-			if (xdr) this.xhr.setRequestHeader('Origin', location.protocol + '//' + location.hostname);
+		this.xhr.open(method.toUpperCase(), url, this.options.async);
+		this.xhr.onreadystatechange = this.onStateChange.bind(this);
+		
+		if (!xd){
+			this.headers.each(function(value, key){
+				try { this.xhr.setRequestHeader(key, value); }
+				catch (e){ this.fireEvent('exception', [key, value]); }
+			}, this);
 		}
+		
+		if (proxy) this.xhr.setRequestHeader('Origin', document.location.protocol + '//' + document.location.hostname);
 
 		this.fireEvent('request');
 		this.xhr.send(data);
@@ -204,20 +192,11 @@ var Request = new Class({
 		if (!this.running) return this;
 		this.running = false;
 		this.xhr.abort();
-		this.cleanup();
+		this.xhr.onreadystatechange = function(){};
 		this.xhr = new Browser.Request();
 		this.fireEvent('cancel');
 		return this;
-	},
-	
-	cleanup: function(){
-		if (this.xhr.onreadystatechange){
-			this.xhr.onreadystatechange = function(){};
-		} else {
-			this.xhr.onload = this.xhr.onerror = this.xhr.ontimeout = function(){};
-		}
 	}
-
 });
 
 Request.setProxy = function(proxy){
