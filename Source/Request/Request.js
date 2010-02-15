@@ -147,22 +147,22 @@ var Request = new Class({
 			var noCache = 'noCache=' + new Date().getTime();
 			data = (data) ? noCache + '&' + data : noCache;
 		}
-		
+
 		var parsedUrl = (/(([a-z]+:)?\/\/([^\/]*)(\:\d{2,3})?\/)?[^#]*/).exec(url);
 		var xd = false;
 		if (parsedUrl){
 			url = parsedUrl[0];
-			var location = document.location;
-			xd = parsedUrl[1] && (parsedUrl[2] && parsedUrl[2] != location.protocol) ||
+			var location = document.location, port = (location.protocol == 'https' ? 443 : 80);
+			xd = parsedUrl[1] && ((parsedUrl[2] && parsedUrl[2] != location.protocol) ||
 				(parsedUrl[3] && parsedUrl[3] != location.hostname) ||
-				((parsedUrl[4] || (location.protocol == 'https' ? 443 : 80)) != location.port);
+				(+(parsedUrl[4] || port) != +(location.port || port)));
 		}
 
 		if (data && method == 'get'){
 			url = url + (url.contains('?') ? '&' : '?') + data;
 			data = null;
 		}
-		
+
 		return this.openRequest(method, url, data, xd);
 	},
 	
