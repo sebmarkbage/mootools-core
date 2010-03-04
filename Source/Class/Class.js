@@ -16,11 +16,18 @@ provides: Class
 
 (function(){
 
+var global = this;
+
 var Class = this.Class = new Type('Class', function(params){
 	
 	if (instanceOf(params, Function)) params = {'initialize': params};
 	
-	var newClass = function(){
+	var newClass = function(instance){
+		if (this === global){
+			var cast = newClass.prototype.cast;
+			if (cast) return cast.apply(this, arguments);
+			return instanceOf(instance, newClass) ? instance : null;
+		}
 		reset(this);
 		if (newClass.$prototyping) return this;
 		this.$caller = null;
