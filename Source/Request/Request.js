@@ -163,13 +163,23 @@ var Request = new Class({
 			data = null;
 		}
 
+		if (xd && this.options.forceProxy){
+			url = this.getProxy(url);
+			xd = false;
+		}
+
 		return this.openRequest(method, url, data, xd);
 	},
-	
+
+	getProxy: function(url){
+		var proxy = this.options.proxy || Request.proxy;
+		return proxy ? proxy.toString().substitute({ url: url }) : url;
+	},
+
 	openRequest: function(method, url, data, xd){
-		var proxy = xd && !('withCredentials' in this.xhr) && this.options.proxy;
-		if (proxy) url = this.options.proxy.substitute({ url: encodeURIComponent(url) });
-		
+		var proxy = xd && !('withCredentials' in this.xhr);
+		if (proxy) url = this.getProxy(url);
+
 		this.xhr.open(method.toUpperCase(), url, this.options.async);
 		this.xhr.onreadystatechange = this.onStateChange.bind(this);
 		
@@ -198,10 +208,6 @@ var Request = new Class({
 		return this;
 	}
 });
-
-Request.setProxy = function(proxy){
-	Request.prototype.options.proxy = proxy;
-};
 
 (function(){
 
