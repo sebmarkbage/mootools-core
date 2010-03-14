@@ -43,7 +43,7 @@ var Event = new Type('Event', function(event, win){
 			if (fKey > 0 && fKey < 13) key = 'f' + fKey;
 		}
 		key = key || String.fromCharCode(code).toLowerCase();
-	} else if (type.match(/(click|mouse|menu)/i)){
+	} else if (type.match(/(click|mouse|menu|drag|drop)/i)){
 		doc = (!doc.compatMode || doc.compatMode == 'CSS1Compat') ? doc.html : doc.body;
 		var page = {
 			x: event.pageX || event.clientX + doc.scrollLeft,
@@ -58,10 +58,10 @@ var Event = new Type('Event', function(event, win){
 		}
 		var rightClick = (event.which == 3) || (event.button == 2);
 		var related = null;
-		if (type.match(/over|out/)){
+		if (type.match(/over|out|enter|leave/)){
 			switch (type){
-				case 'mouseover': related = event.relatedTarget || event.fromElement; break;
-				case 'mouseout': related = event.relatedTarget || event.toElement;
+				case 'dragenter': case 'mouseover': related = event.relatedTarget || event.fromElement; break;
+				case 'dragleave': case 'mouseout': related = event.relatedTarget || event.toElement;
 			}
 			if (!(function(){
 				while (related && related.nodeType == 3) related = related.parentNode;

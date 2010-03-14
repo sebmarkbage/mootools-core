@@ -120,6 +120,7 @@ Element.NativeEvents = {
 	click: 2, dblclick: 2, mouseup: 2, mousedown: 2, contextmenu: 2, //mouse buttons
 	mousewheel: 2, DOMMouseScroll: 2, //mouse wheel
 	mouseover: 2, mouseout: 2, mousemove: 2, selectstart: 2, selectend: 2, //mouse movement
+	dragstart: 2, drag: 2, dragend: 2, dragenter: 2, dragover: 2, dragleave: 2, drop: 2, //drag and drop
 	keydown: 2, keypress: 2, keyup: 2, //keyboard
 	focus: 2, blur: 2, change: 2, reset: 2, select: 2, submit: 2, //form elements
 	load: 1, unload: 1, beforeunload: 2, resize: 1, move: 1, DOMContentLoaded: 1, readystatechange: 1, //window
@@ -149,6 +150,29 @@ Element.Events = new Hash({
 
 	mousewheel: {
 		base: (Browser.Engine.gecko) ? 'DOMMouseScroll' : 'mousewheel'
+	},
+
+	dragend: Browser.Engine.webkit ? {
+		condition: function(event){
+			if (event.$delayed) return true;
+			event.$delayed = true;
+			this.fireEvent.delay(40, this, ['dragend', event]);
+			return false;
+		}
+	} : {},
+
+	drag: Browser.Engine.gecko19 ? {
+		condition: function(event){
+			return event.page.x != 0 || event.page.y != 0 || event.client.x != 0 || event.client.y != 0;
+		}
+	} : {},
+
+	dragenterself: {
+		base: 'dragenter', condition: $check
+	},
+
+	dragleaveself: {
+		base: 'dragleave', condition: $check
 	}
 
 });
