@@ -43,7 +43,7 @@ Element.Properties.events = {set: function(events){
 		if (nativeEvent){
 			if (nativeEvent == 2){
 				defn = function(event){
-					event = new Event(event, self.getWindow());
+					event = Event(event, self.getWindow());
 					if (condition.call(self, event) === false) event.stop();
 				};
 			}

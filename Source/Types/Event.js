@@ -14,12 +14,23 @@ provides: Event
 ...
 */
 
+(function(){
+
+var global = this;
+
 var Event = new Type('Event', function(event, win){
+	if (this === global) return event.$extended || new Event(event, win);
 	win = win || window;
 	var doc = win.document;
 	event = event || win.event;
-	if (event.$extended) return event;
-	this.$extended = true;
+	if (event.$extended){
+		event = event.$extended;
+		for (var key in event)
+			if (event.hasOwnProperty(key))
+				this[key] = event[key];
+		return this;
+	}
+	try { event.$extended = this.$extended = this; } catch (e){}
 	var type = event.type;
 	var target = event.target || event.srcElement;
 	while (target && target.nodeType == 3) target = target.parentNode;
@@ -114,3 +125,5 @@ Event.implement({
 	}
 
 });
+
+})();
