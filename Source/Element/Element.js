@@ -153,6 +153,7 @@ Document.implement({
 				$uid(el);
 				if (!nocash && !el.$family && !(/^object|embed$/i).test(el.tagName)){
 					var proto = Element.Prototype;
+					el._fireEvent = el.fireEvent;
 					for (var p in proto) el[p] = proto[p];
 				};
 				return el;
