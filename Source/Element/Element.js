@@ -258,7 +258,8 @@ Element.implement({
 	},
 
 	inject: function(el, where){
-		inserters[where || 'bottom'](this, document.id(el));
+		if (el.grab) el.grab(this, where);
+		else inserters[where || 'bottom'](this, document.id(el));
 		return this;
 	},
 
