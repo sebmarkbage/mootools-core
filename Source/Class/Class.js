@@ -21,6 +21,7 @@ var Class = this.Class = new Type('Class', function(params){
 	if (instanceOf(params, Function)) params = {'initialize': params};
 	
 	var newClass = function(){
+		if (!(this instanceof newClass)) return newClass.prototype.cast.apply(newClass, arguments);
 		reset(this);
 		if (newClass.$prototyping) return this;
 		this.$caller = null;
