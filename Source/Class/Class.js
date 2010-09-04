@@ -21,13 +21,18 @@ var Class = this.Class = new Type('Class', function(params){
 	if (instanceOf(params, Function)) params = {'initialize': params};
 
 	var newClass = function(){
-		reset(this);
+		for (var i = 0, l = resets.length; i < l; i++){
+			var key = resets[i];
+			this[key] = reset(this[key]);
+		}
 		if (newClass.$prototyping) return this;
 		this.$caller = null;
 		var value = (this.initialize) ? this.initialize.apply(this, arguments) : this;
 		this.$caller = this.caller = null;
 		return value;
 	}.extend(this);
+
+	var resets = newClass.$resets = [];
 
 	newClass.implement(params);
 
@@ -47,20 +52,20 @@ var parent = function(){
 	return previous.apply(this, arguments);
 };
 
-var reset = function(object){
-	for (var key in object){
-		var value = object[key];
-		switch (typeOf(value)){
-			case 'object':
-				var F = function(){};
-				F.prototype = value;
-				var instance = new F;
-				object[key] = reset(instance);
-			break;
-			case 'array': object[key] = value.clone(); break;
-		}
+var emptyConstructor = function(){};
+
+var reset = function(value){
+	switch (typeOf(value)){
+		case 'object':
+			emptyConstructor.prototype = value;
+			var instance = new emptyConstructor;
+			for (var key in value){
+				instance[key] = reset(value[key]);
+			}
+		break;
+		case 'array': return value.clone();
 	}
-	return object;
+	return value;
 };
 
 var wrap = function(self, key, method){
@@ -79,6 +84,7 @@ var wrap = function(self, key, method){
 var implement = function(key, value, retain){
 
 	if (Class.Mutators.hasOwnProperty(key)){
+		this.$resets.erase(key);
 		value = Class.Mutators[key].call(this, value);
 		if (value == null) return this;
 	}
@@ -86,8 +92,11 @@ var implement = function(key, value, retain){
 	if (typeOf(value) == 'function'){
 		if (value.$hidden) return this;
 		this.prototype[key] = (retain) ? value : wrap(this, key, value);
+		this.$resets.erase(key);
 	} else {
 		Object.merge(this.prototype, key, value);
+		if (typeOf(value) == 'object')
+		this.$resets.include(key);
 	}
 
 	return this;
